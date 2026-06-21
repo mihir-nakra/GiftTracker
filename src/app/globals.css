@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --color-warm-50: #fdf8f6;
+  --color-warm-100: #f9ede7;
+  --color-warm-200: #f3ddd3;
+  --color-warm-300: #e8c4b4;
+  --color-warm-400: #d4a08a;
+  --color-warm-500: #c07d62;
+  --color-warm-600: #a6624a;
+  --color-warm-700: #8b4f3d;
+  --color-warm-800: #6e3f31;
+  --color-warm-900: #5a352a;
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+}
+
+body {
+  background-color: var(--color-warm-50);
+  color: #3d2c24;
+}
