@@ -5,15 +5,17 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
+const MAX_PHOTOS = 4;
+
 interface Party {
   id?: string;
   title: string;
   date: string;
   description: string;
   gift_description: string;
-  gift_image_url: string;
+  gift_image_urls: string[];
   outfit_description: string;
-  outfit_image_url: string;
+  outfit_image_urls: string[];
 }
 
 export function PartyForm({ party }: { party?: Party }) {
@@ -25,9 +27,9 @@ export function PartyForm({ party }: { party?: Party }) {
   const [date, setDate] = useState(party?.date || "");
   const [description, setDescription] = useState(party?.description || "");
   const [giftDescription, setGiftDescription] = useState(party?.gift_description || "");
-  const [giftImageUrl, setGiftImageUrl] = useState(party?.gift_image_url || "");
+  const [giftImageUrls, setGiftImageUrls] = useState<string[]>(party?.gift_image_urls || []);
   const [outfitDescription, setOutfitDescription] = useState(party?.outfit_description || "");
-  const [outfitImageUrl, setOutfitImageUrl] = useState(party?.outfit_image_url || "");
+  const [outfitImageUrls, setOutfitImageUrls] = useState<string[]>(party?.outfit_image_urls || []);
   const [saving, setSaving] = useState(false);
   const [uploadingGift, setUploadingGift] = useState(false);
   const [uploadingOutfit, setUploadingOutfit] = useState(false);
@@ -35,7 +37,14 @@ export function PartyForm({ party }: { party?: Party }) {
 
   async function uploadImage(file: File, type: "gift" | "outfit") {
     const setUploading = type === "gift" ? setUploadingGift : setUploadingOutfit;
-    const setUrl = type === "gift" ? setGiftImageUrl : setOutfitImageUrl;
+    const urls = type === "gift" ? giftImageUrls : outfitImageUrls;
+    const setUrls = type === "gift" ? setGiftImageUrls : setOutfitImageUrls;
+
+    if (urls.length >= MAX_PHOTOS) {
+      setError(`Maximum ${MAX_PHOTOS} photos per section`);
+      return;
+    }
+
     setUploading(true);
 
     const ext = file.name.split(".").pop();
@@ -56,8 +65,16 @@ export function PartyForm({ party }: { party?: Party }) {
       .from("party-images")
       .getPublicUrl(path);
 
-    setUrl(data.publicUrl);
+    setUrls([...urls, data.publicUrl]);
     setUploading(false);
+  }
+
+  function removeImage(type: "gift" | "outfit", index: number) {
+    if (type === "gift") {
+      setGiftImageUrls(giftImageUrls.filter((_, i) => i !== index));
+    } else {
+      setOutfitImageUrls(outfitImageUrls.filter((_, i) => i !== index));
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -77,9 +94,9 @@ export function PartyForm({ party }: { party?: Party }) {
       date,
       description: description || null,
       gift_description: giftDescription || null,
-      gift_image_url: giftImageUrl || null,
+      gift_image_urls: giftImageUrls,
       outfit_description: outfitDescription || null,
-      outfit_image_url: outfitImageUrl || null,
+      outfit_image_urls: outfitImageUrls,
       user_id: user.id,
       updated_at: new Date().toISOString(),
     };
@@ -107,6 +124,16 @@ export function PartyForm({ party }: { party?: Party }) {
     if (!party?.id) return;
     if (!confirm("Delete this party entry?")) return;
 
+    const imagePaths: string[] = [];
+    [...giftImageUrls, ...outfitImageUrls].forEach((url) => {
+      const path = url.split("/storage/v1/object/public/party-images/")[1];
+      if (path) imagePaths.push(path);
+    });
+
+    if (imagePaths.length > 0) {
+      await supabase.storage.from("party-images").remove(imagePaths);
+    }
+
     const { error } = await supabase
       .from("parties")
       .delete()
@@ -118,6 +145,54 @@ export function PartyForm({ party }: { party?: Party }) {
       router.push("/");
       router.refresh();
     }
+  }
+
+  function renderImageSection(type: "gift" | "outfit") {
+    const urls = type === "gift" ? giftImageUrls : outfitImageUrls;
+    const uploading = type === "gift" ? uploadingGift : uploadingOutfit;
+    const label = type === "gift" ? "Gift" : "Outfit";
+
+    return (
+      <div>
+        <label className="block text-sm text-[var(--color-warm-600)] mb-1">
+          {label} Photos ({urls.length}/{MAX_PHOTOS})
+        </label>
+        {urls.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {urls.map((url, i) => (
+              <div key={i} className="relative h-32 rounded-xl overflow-hidden">
+                <Image
+                  src={url}
+                  alt={`${label} ${i + 1}`}
+                  fill
+                  className="object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(type, i)}
+                  className="absolute top-1.5 right-1.5 bg-white/80 rounded-full w-6 h-6 flex items-center justify-center text-[var(--color-warm-700)] hover:bg-white text-sm"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {urls.length < MAX_PHOTOS && (
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadImage(file, type);
+            }}
+            disabled={uploading}
+            className="w-full text-sm text-[var(--color-warm-500)] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-[var(--color-warm-100)] file:text-[var(--color-warm-700)] hover:file:bg-[var(--color-warm-200)]"
+          />
+        )}
+        {uploading && <p className="text-xs text-[var(--color-warm-400)] mt-1">Uploading...</p>}
+      </div>
+    );
   }
 
   return (
@@ -174,39 +249,7 @@ export function PartyForm({ party }: { party?: Party }) {
               className="w-full px-4 py-2.5 rounded-xl border border-[var(--color-warm-200)] focus:outline-none focus:ring-2 focus:ring-[var(--color-warm-400)] bg-[var(--color-warm-50)] resize-none"
             />
           </div>
-          <div>
-            <label className="block text-sm text-[var(--color-warm-600)] mb-1">
-              Gift Photo
-            </label>
-            {giftImageUrl && (
-              <div className="relative w-full h-48 mb-2 rounded-xl overflow-hidden">
-                <Image
-                  src={giftImageUrl}
-                  alt="Gift"
-                  fill
-                  className="object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setGiftImageUrl("")}
-                  className="absolute top-2 right-2 bg-white/80 rounded-full w-7 h-7 flex items-center justify-center text-[var(--color-warm-700)] hover:bg-white"
-                >
-                  &times;
-                </button>
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) uploadImage(file, "gift");
-              }}
-              disabled={uploadingGift}
-              className="w-full text-sm text-[var(--color-warm-500)] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-[var(--color-warm-100)] file:text-[var(--color-warm-700)] hover:file:bg-[var(--color-warm-200)]"
-            />
-            {uploadingGift && <p className="text-xs text-[var(--color-warm-400)] mt-1">Uploading...</p>}
-          </div>
+          {renderImageSection("gift")}
         </div>
       </div>
 
@@ -224,39 +267,7 @@ export function PartyForm({ party }: { party?: Party }) {
               className="w-full px-4 py-2.5 rounded-xl border border-[var(--color-warm-200)] focus:outline-none focus:ring-2 focus:ring-[var(--color-warm-400)] bg-[var(--color-warm-50)] resize-none"
             />
           </div>
-          <div>
-            <label className="block text-sm text-[var(--color-warm-600)] mb-1">
-              Outfit Photo
-            </label>
-            {outfitImageUrl && (
-              <div className="relative w-full h-48 mb-2 rounded-xl overflow-hidden">
-                <Image
-                  src={outfitImageUrl}
-                  alt="Outfit"
-                  fill
-                  className="object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setOutfitImageUrl("")}
-                  className="absolute top-2 right-2 bg-white/80 rounded-full w-7 h-7 flex items-center justify-center text-[var(--color-warm-700)] hover:bg-white"
-                >
-                  &times;
-                </button>
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) uploadImage(file, "outfit");
-              }}
-              disabled={uploadingOutfit}
-              className="w-full text-sm text-[var(--color-warm-500)] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-[var(--color-warm-100)] file:text-[var(--color-warm-700)] hover:file:bg-[var(--color-warm-200)]"
-            />
-            {uploadingOutfit && <p className="text-xs text-[var(--color-warm-400)] mt-1">Uploading...</p>}
-          </div>
+          {renderImageSection("outfit")}
         </div>
       </div>
 

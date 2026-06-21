@@ -10,9 +10,9 @@ interface Party {
   date: string;
   description: string | null;
   gift_description: string | null;
-  gift_image_url: string | null;
+  gift_image_urls: string[];
   outfit_description: string | null;
-  outfit_image_url: string | null;
+  outfit_image_urls: string[];
 }
 
 export function PartyCard({ party }: { party: Party }) {
@@ -21,9 +21,9 @@ export function PartyCard({ party }: { party: Party }) {
   const hasDetails =
     party.description ||
     party.gift_description ||
-    party.gift_image_url ||
+    (party.gift_image_urls && party.gift_image_urls.length > 0) ||
     party.outfit_description ||
-    party.outfit_image_url;
+    (party.outfit_image_urls && party.outfit_image_urls.length > 0);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[var(--color-warm-100)] overflow-hidden">
@@ -69,19 +69,23 @@ export function PartyCard({ party }: { party: Party }) {
             <p className="text-sm text-[var(--color-warm-600)]">{party.description}</p>
           )}
 
-          {(party.gift_description || party.gift_image_url) && (
+          {(party.gift_description || (party.gift_image_urls && party.gift_image_urls.length > 0)) && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-warm-400)] mb-1">
                 Gift
               </h3>
-              {party.gift_image_url && (
-                <div className="relative w-full h-48 rounded-lg overflow-hidden mb-2">
-                  <Image
-                    src={party.gift_image_url}
-                    alt="Gift"
-                    fill
-                    className="object-cover"
-                  />
+              {party.gift_image_urls && party.gift_image_urls.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {party.gift_image_urls.map((url, i) => (
+                    <div key={i} className="relative h-32 rounded-lg overflow-hidden">
+                      <Image
+                        src={url}
+                        alt={`Gift ${i + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
               {party.gift_description && (
@@ -90,19 +94,23 @@ export function PartyCard({ party }: { party: Party }) {
             </div>
           )}
 
-          {(party.outfit_description || party.outfit_image_url) && (
+          {(party.outfit_description || (party.outfit_image_urls && party.outfit_image_urls.length > 0)) && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-warm-400)] mb-1">
                 Outfit
               </h3>
-              {party.outfit_image_url && (
-                <div className="relative w-full h-48 rounded-lg overflow-hidden mb-2">
-                  <Image
-                    src={party.outfit_image_url}
-                    alt="Outfit"
-                    fill
-                    className="object-cover"
-                  />
+              {party.outfit_image_urls && party.outfit_image_urls.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {party.outfit_image_urls.map((url, i) => (
+                    <div key={i} className="relative h-32 rounded-lg overflow-hidden">
+                      <Image
+                        src={url}
+                        alt={`Outfit ${i + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
               {party.outfit_description && (
