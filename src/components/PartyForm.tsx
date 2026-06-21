@@ -198,7 +198,6 @@ export function PartyForm({ party }: { party?: Party }) {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) uploadImage(file, "gift");
@@ -249,7 +248,6 @@ export function PartyForm({ party }: { party?: Party }) {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) uploadImage(file, "outfit");
